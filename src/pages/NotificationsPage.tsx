@@ -11,10 +11,18 @@ import {
   CircularProgress,
   Tabs,
   Tab,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from "@mui/material";
 import {
   Notifications as NotificationsIcon,
   CheckCircle as CheckIcon,
+  Delete as DeleteIcon,
+  DeleteSweep as DeleteSweepIcon,
 } from "@mui/icons-material";
 import { notificationService } from "../services/notification.service";
 import { formatCurrency, formatDateTime } from "../utils/format";
@@ -29,17 +37,20 @@ const NotificationsPage = () => {
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [readNotifications, setReadNotifications] = useState<Set<number>>(
     () => {
-      // localStorage에서 읽은 알림 ID 로드
       const saved = localStorage.getItem("readNotifications");
       return saved ? new Set(JSON.parse(saved)) : new Set();
     }
   );
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    notificationId: number | null;
+    isAll: boolean;
+  }>({ open: false, notificationId: null, isAll: false });
 
   useEffect(() => {
     loadNotifications();
   }, [tab]);
 
-  // readNotifications 변경 시 localStorage에 저장
   useEffect(() => {
     localStorage.setItem(
       "readNotifications",
@@ -58,7 +69,6 @@ const NotificationsPage = () => {
               size: 50,
             });
 
-      // 서버 데이터와 로컬 읽음 상태를 병합
       const mergedNotifications = response.content.map((n) => ({
         ...n,
         isRead: n.isRead || readNotifications.has(n.notificationId),
@@ -74,13 +84,8 @@ const NotificationsPage = () => {
 
   const handleMarkAsRead = async (notificationId: number) => {
     try {
-      // 1. 백엔드 API 호출
       await notificationService.markAsRead(notificationId);
-
-      // 2. 읽은 알림 ID를 로컬에 저장
       setReadNotifications((prev) => new Set(prev).add(notificationId));
-
-      // 3. 로컬 상태 업데이트 (NEW 제거)
       setNotifications((prev) =>
         prev.map((n) =>
           n.notificationId === notificationId
@@ -95,18 +100,13 @@ const NotificationsPage = () => {
 
   const handleMarkAllAsRead = async () => {
     try {
-      // 1. 백엔드 API 호출
       await notificationService.markAllAsRead();
-
-      // 2. 모든 알림 ID를 로컬에 저장
       const allIds = notifications.map((n) => n.notificationId);
       setReadNotifications((prev) => {
         const newSet = new Set(prev);
         allIds.forEach((id) => newSet.add(id));
         return newSet;
       });
-
-      // 3. 로컬 상태 업데이트 (모든 NEW 제거)
       setNotifications((prev) =>
         prev.map((n) => ({
           ...n,
@@ -117,6 +117,56 @@ const NotificationsPage = () => {
     } catch (err: any) {
       setError(err.response?.data?.message || "전체 읽음 처리에 실패했습니다.");
     }
+  };
+
+  const handleDeleteClick = (notificationId: number) => {
+    setDeleteDialog({ open: true, notificationId, isAll: false });
+  };
+
+  const handleDeleteAllClick = () => {
+    setDeleteDialog({ open: true, notificationId: null, isAll: true });
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      if (deleteDialog.isAll) {
+        // 읽은 알림 전체 삭제
+        await notificationService.deleteAllReadNotifications();
+        // 로컬에서도 읽은 알림 제거
+        setNotifications((prev) => prev.filter((n) => !n.isRead));
+        // localStorage에서 삭제된 알림 ID 제거
+        const readIds = notifications
+          .filter((n) => n.isRead)
+          .map((n) => n.notificationId);
+        setReadNotifications((prev) => {
+          const newSet = new Set(prev);
+          readIds.forEach((id) => newSet.delete(id));
+          return newSet;
+        });
+      } else if (deleteDialog.notificationId) {
+        // 개별 알림 삭제
+        await notificationService.deleteNotification(
+          deleteDialog.notificationId
+        );
+        setNotifications((prev) =>
+          prev.filter((n) => n.notificationId !== deleteDialog.notificationId)
+        );
+        // localStorage에서도 제거
+        setReadNotifications((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(deleteDialog.notificationId!);
+          return newSet;
+        });
+      }
+      setDeleteDialog({ open: false, notificationId: null, isAll: false });
+    } catch (err: any) {
+      setError(err.response?.data?.message || "알림 삭제에 실패했습니다.");
+      setDeleteDialog({ open: false, notificationId: null, isAll: false });
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ open: false, notificationId: null, isAll: false });
   };
 
   const getTypeColor = (type: string) => {
@@ -155,6 +205,8 @@ const NotificationsPage = () => {
     }
   };
 
+  const readNotificationsCount = notifications.filter((n) => n.isRead).length;
+
   if (loading) {
     return (
       <Container maxWidth="md" sx={{ py: 4, textAlign: "center" }}>
@@ -176,16 +228,29 @@ const NotificationsPage = () => {
         <Typography variant="h5" fontWeight="bold">
           알림
         </Typography>
-        {tab === "unread" && notifications.length > 0 && (
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<CheckIcon />}
-            onClick={handleMarkAllAsRead}
-          >
-            전체 읽음
-          </Button>
-        )}
+        <Box sx={{ display: "flex", gap: 1 }}>
+          {tab === "unread" && notifications.length > 0 && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<CheckIcon />}
+              onClick={handleMarkAllAsRead}
+            >
+              전체 읽음
+            </Button>
+          )}
+          {tab === "all" && readNotificationsCount > 0 && (
+            <Button
+              variant="outlined"
+              size="small"
+              color="error"
+              startIcon={<DeleteSweepIcon />}
+              onClick={handleDeleteAllClick}
+            >
+              읽은 알림 삭제
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {error && (
@@ -222,12 +287,6 @@ const NotificationsPage = () => {
               key={notification.notificationId}
               sx={{
                 bgcolor: notification.isRead ? "transparent" : "action.hover",
-                cursor: notification.isRead ? "default" : "pointer",
-              }}
-              onClick={() => {
-                if (!notification.isRead) {
-                  handleMarkAsRead(notification.notificationId);
-                }
               }}
             >
               <CardContent>
@@ -238,7 +297,17 @@ const NotificationsPage = () => {
                     alignItems: "flex-start",
                   }}
                 >
-                  <Box sx={{ flex: 1 }}>
+                  <Box
+                    sx={{
+                      flex: 1,
+                      cursor: notification.isRead ? "default" : "pointer",
+                    }}
+                    onClick={() => {
+                      if (!notification.isRead) {
+                        handleMarkAsRead(notification.notificationId);
+                      }
+                    }}
+                  >
                     <Box
                       sx={{
                         display: "flex",
@@ -286,12 +355,46 @@ const NotificationsPage = () => {
                       {formatDateTime(notification.createdAt)}
                     </Typography>
                   </Box>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() =>
+                      handleDeleteClick(notification.notificationId)
+                    }
+                    sx={{ ml: 1 }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
                 </Box>
               </CardContent>
             </Card>
           ))}
         </Box>
       )}
+
+      {/* 삭제 확인 다이얼로그 */}
+      <Dialog open={deleteDialog.open} onClose={handleDeleteCancel}>
+        <DialogTitle>
+          {deleteDialog.isAll ? "읽은 알림 전체 삭제" : "알림 삭제"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {deleteDialog.isAll
+              ? `읽은 알림 ${readNotificationsCount}개를 모두 삭제하시겠습니까?`
+              : "이 알림을 삭제하시겠습니까?"}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>취소</Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+          >
+            삭제
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
