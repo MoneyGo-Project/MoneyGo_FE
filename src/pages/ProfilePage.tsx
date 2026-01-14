@@ -19,19 +19,25 @@ import {
   ListItemText,
   ListItemIcon,
   Snackbar,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import {
   Lock as LockIcon,
   Pin as PinIcon,
   DeleteForever as DeleteIcon,
   ArrowForward as ArrowForwardIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
 } from "@mui/icons-material";
 import { authService } from "../services/auth.service";
 import { simplePasswordService } from "../services/simplePassword.service";
+import { useTheme } from "../contexts/ThemeContext";
 
 const ProfilePage = () => {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
+  const { isDarkMode, toggleTheme } = useTheme();
 
   // 비밀번호 변경
   const [passwordDialog, setPasswordDialog] = useState(false);
@@ -246,6 +252,32 @@ const ProfilePage = () => {
                 secondary="송금/결제 시 사용하는 6자리 비밀번호"
               />
               <ArrowForwardIcon color="action" />
+            </ListItem>
+          </List>
+        </CardContent>
+      </Card>
+
+      {/* 앱 설정 */}
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            앱 설정
+          </Typography>
+          <Divider sx={{ my: 2 }} />
+          <List>
+            <ListItem sx={{ borderRadius: 1 }}>
+              <ListItemIcon>
+                {isDarkMode ? <DarkModeIcon /> : <LightModeIcon />}
+              </ListItemIcon>
+              <ListItemText
+                primary="다크모드"
+                secondary="어두운 테마를 사용합니다"
+              />
+              <Switch
+                checked={isDarkMode}
+                onChange={toggleTheme}
+                color="primary"
+              />
             </ListItem>
           </List>
         </CardContent>
