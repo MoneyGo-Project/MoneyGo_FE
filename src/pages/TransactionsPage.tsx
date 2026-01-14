@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   Container,
   Box,
@@ -9,202 +9,345 @@ import {
   ListItem,
   ListItemText,
   Divider,
-  Tabs,
-  Tab,
   CircularProgress,
   Alert,
   Chip,
   Button,
-} from '@mui/material';
-import { Refresh as RefreshIcon } from '@mui/icons-material';
-import { transactionService } from '../services/transaction.service';
-import { accountService } from '../services/account.service';
-import { TransactionResponse, AccountResponse } from '../types/api.types';
-import { formatCurrency, formatDateTime } from '../utils/format';
+  ToggleButtonGroup,
+  ToggleButton,
+  TextField,
+  MenuItem,
+  Collapse,
+} from "@mui/material";
+import {
+  Refresh as RefreshIcon,
+  FilterList as FilterIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+} from "@mui/icons-material";
+import { transactionService } from "../services/transaction.service";
+import { accountService } from "../services/account.service";
+import { TransactionResponse, AccountResponse } from "../types/api.types";
+import { formatCurrency, formatDateTime } from "../utils/format";
 
 const TransactionsPage = () => {
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [account, setAccount] = useState<AccountResponse | null>(null);
-  const [tabValue, setTabValue] = useState(0); // 0: 전체, 1: 보낸내역, 2: 받은내역
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState("");
 
-  const fetchAccount = async () => {
-    try {
-      const accountData = await accountService.getMyAccount();
-      setAccount(accountData);
-    } catch (err) {
-      console.error('Failed to fetch account:', err);
-    }
-  };
-
-  const fetchTransactions = async (reset = false) => {
-    setError('');
-    
-    if (reset) {
-      setLoading(true);
-      setPage(0);
-    }
-
-    try {
-      const typeMap = ['ALL', 'SENT', 'RECEIVED'];
-      const response = await transactionService.getTransactions({
-        type: typeMap[tabValue],
-        page: reset ? 0 : page,
-        size: 20,
-      });
-
-      if (reset) {
-        setTransactions(response.content);
-      } else {
-        setTransactions([...transactions, ...response.content]);
-      }
-
-      setHasMore(response.number < response.totalPages - 1);
-      setPage((reset ? 0 : page) + 1);
-    } catch (err: any) {
-      setError('거래 내역을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 필터 상태
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<string>("all"); // all, today, week, month, custom
+  const [transactionType, setTransactionType] = useState<string>(""); // '', TRANSFER, DEPOSIT, QR_PAYMENT
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   useEffect(() => {
     fetchAccount();
   }, []);
 
   useEffect(() => {
-    if (account) {
-      fetchTransactions(true);
-    }
-  }, [tabValue, account]);
+    fetchTransactions();
+  }, [dateRange, transactionType, startDate, endDate]);
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
+  const fetchAccount = async () => {
+    try {
+      const accountData = await accountService.getMyAccount();
+      setAccount(accountData);
+    } catch (err) {
+      console.error("계좌 조회 실패:", err);
+    }
   };
 
-  const getTransactionColor = (transaction: TransactionResponse): 'success' | 'error' => {
-    return transaction.fromAccount === account?.accountNumber ? 'error' : 'success';
+  const fetchTransactions = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      let params: {
+        type?: string;
+        startDate?: string;
+        endDate?: string;
+        page: number;
+        size: number;
+      } = {
+        page: 0,
+        size: 50,
+      };
+
+      // 거래 유형 필터
+      if (transactionType) {
+        params.type = transactionType;
+      }
+
+      // 날짜 범위 필터
+      const today = new Date();
+      let calculatedStartDate = "";
+      let calculatedEndDate = "";
+
+      switch (dateRange) {
+        case "today":
+          calculatedStartDate = today.toISOString().split("T")[0];
+          calculatedEndDate = calculatedStartDate;
+          break;
+        case "week":
+          const weekAgo = new Date(today);
+          weekAgo.setDate(today.getDate() - 7);
+          calculatedStartDate = weekAgo.toISOString().split("T")[0];
+          calculatedEndDate = today.toISOString().split("T")[0];
+          break;
+        case "month":
+          const monthAgo = new Date(today);
+          monthAgo.setMonth(today.getMonth() - 1);
+          calculatedStartDate = monthAgo.toISOString().split("T")[0];
+          calculatedEndDate = today.toISOString().split("T")[0];
+          break;
+        case "custom":
+          if (startDate) calculatedStartDate = startDate;
+          if (endDate) calculatedEndDate = endDate;
+          break;
+        default:
+          // 'all' - 파라미터 없음
+          break;
+      }
+
+      if (calculatedStartDate) params.startDate = calculatedStartDate;
+      if (calculatedEndDate) params.endDate = calculatedEndDate;
+
+      const response = await transactionService.getTransactions(params);
+      setTransactions(response.content);
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || "거래 내역을 불러오는데 실패했습니다."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDateRangeChange = (value: string) => {
+    setDateRange(value);
+    if (value !== "custom") {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
+
+  const getTransactionColor = (
+    transaction: TransactionResponse
+  ): "success" | "error" => {
+    return transaction.fromAccount === account?.accountNumber
+      ? "error"
+      : "success";
   };
 
   const getTransactionAmount = (transaction: TransactionResponse): string => {
     const isOutgoing = transaction.fromAccount === account?.accountNumber;
-    const sign = isOutgoing ? '-' : '+';
+    const sign = isOutgoing ? "-" : "+";
     return `${sign}${formatCurrency(transaction.amount)}`;
   };
 
-  const getTransactionLabel = (transaction: TransactionResponse): string => {
-    const isOutgoing = transaction.fromAccount === account?.accountNumber;
-    return isOutgoing ? '출금' : '입금';
+  const getTypeLabel = (type: string): string => {
+    switch (type) {
+      case "TRANSFER":
+        return "송금";
+      case "DEPOSIT":
+        return "입금";
+      case "QR_PAYMENT":
+        return "QR결제";
+      default:
+        return type;
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "TRANSFER":
+        return "primary";
+      case "DEPOSIT":
+        return "success";
+      case "QR_PAYMENT":
+        return "secondary";
+      default:
+        return "default";
+    }
   };
 
   if (loading && transactions.length === 0) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+      <Container maxWidth="md" sx={{ py: 4, textAlign: "center" }}>
         <CircularProgress />
-      </Box>
+      </Container>
     );
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
         <Typography variant="h5" fontWeight="bold">
-          거래내역
+          거래 내역
         </Typography>
-        <Button
-          size="small"
-          startIcon={<RefreshIcon />}
-          onClick={() => fetchTransactions(true)}
-        >
-          새로고침
-        </Button>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={filterOpen ? <ExpandLessIcon /> : <FilterIcon />}
+            onClick={() => setFilterOpen(!filterOpen)}
+          >
+            필터
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<RefreshIcon />}
+            onClick={fetchTransactions}
+          >
+            새로고침
+          </Button>
+        </Box>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
           {error}
         </Alert>
       )}
 
-      <Card elevation={2} sx={{ mb: 2 }}>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          variant="fullWidth"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab label="전체" />
-          <Tab label="보낸내역" />
-          <Tab label="받은내역" />
-        </Tabs>
-      </Card>
+      {/* 필터 패널 */}
+      <Collapse in={filterOpen}>
+        <Card sx={{ mb: 2 }}>
+          <CardContent>
+            <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+              날짜 범위
+            </Typography>
+            <ToggleButtonGroup
+              value={dateRange}
+              exclusive
+              onChange={(_, value) => value && handleDateRangeChange(value)}
+              size="small"
+              fullWidth
+              sx={{ mb: 2 }}
+            >
+              <ToggleButton value="all">전체</ToggleButton>
+              <ToggleButton value="today">오늘</ToggleButton>
+              <ToggleButton value="week">이번주</ToggleButton>
+              <ToggleButton value="month">이번달</ToggleButton>
+              <ToggleButton value="custom">직접선택</ToggleButton>
+            </ToggleButtonGroup>
 
-      <Card elevation={1}>
-        <CardContent sx={{ p: 0 }}>
-          {transactions.length === 0 ? (
-            <Box sx={{ py: 8, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                거래 내역이 없습니다
-              </Typography>
-            </Box>
-          ) : (
-            <List disablePadding>
-              {transactions.map((transaction, index) => (
-                <Box key={transaction.transactionId}>
-                  {index > 0 && <Divider />}
-                  <ListItem sx={{ px: 2, py: 2 }}>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 0.5 }}>
-                          <Box>
-                            <Chip
-                              label={getTransactionLabel(transaction)}
-                              size="small"
-                              color={getTransactionColor(transaction)}
-                              sx={{ mr: 1, mb: 0.5 }}
-                            />
-                            <Typography variant="body1" component="span" fontWeight="medium">
-                              {transaction.counterpartyName}
-                            </Typography>
-                          </Box>
-                          <Typography
-                            variant="body1"
-                            fontWeight="bold"
-                            color={getTransactionColor(transaction) === 'success' ? 'success.main' : 'error.main'}
-                          >
-                            {getTransactionAmount(transaction)}
-                          </Typography>
-                        </Box>
-                      }
-                      secondary={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                            {transaction.description}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {formatDateTime(transaction.createdAt)}
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                </Box>
-              ))}
-            </List>
-          )}
+            {dateRange === "custom" && (
+              <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+                <TextField
+                  label="시작일"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="종료일"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                  size="small"
+                />
+              </Box>
+            )}
 
-          {hasMore && transactions.length > 0 && (
-            <Box sx={{ textAlign: 'center', py: 2 }}>
-              <Button onClick={() => fetchTransactions(false)} disabled={loading}>
-                {loading ? <CircularProgress size={24} /> : '더보기'}
-              </Button>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+            <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+              거래 유형
+            </Typography>
+            <TextField
+              select
+              value={transactionType}
+              onChange={(e) => setTransactionType(e.target.value)}
+              size="small"
+              fullWidth
+            >
+              <MenuItem value="">전체</MenuItem>
+              <MenuItem value="TRANSFER">송금</MenuItem>
+              <MenuItem value="DEPOSIT">입금</MenuItem>
+              <MenuItem value="QR_PAYMENT">QR결제</MenuItem>
+            </TextField>
+          </CardContent>
+        </Card>
+      </Collapse>
+
+      {/* 거래 내역 리스트 */}
+      {transactions.length === 0 ? (
+        <Card>
+          <CardContent sx={{ textAlign: "center", py: 6 }}>
+            <Typography variant="h6" gutterBottom>
+              거래 내역이 없습니다
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              조건에 맞는 거래 내역이 없습니다
+            </Typography>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <List>
+            {transactions.map((transaction, index) => (
+              <Box key={transaction.transactionId}>
+                {index > 0 && <Divider />}
+                <ListItem>
+                  <ListItemText
+                    primary={
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          mb: 0.5,
+                        }}
+                      >
+                        <Chip
+                          label={getTypeLabel(transaction.type)}
+                          color={getTypeColor(transaction.type)}
+                          size="small"
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {transaction.counterpartyName || "내 계좌"}
+                        </Typography>
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          {transaction.description}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDateTime(transaction.createdAt)}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color={getTransactionColor(transaction)}
+                  >
+                    {getTransactionAmount(transaction)}
+                  </Typography>
+                </ListItem>
+              </Box>
+            ))}
+          </List>
+        </Card>
+      )}
     </Container>
   );
 };
