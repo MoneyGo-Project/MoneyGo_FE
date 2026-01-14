@@ -219,3 +219,15 @@ export interface SimplePasswordResponse {
   hasSimplePassword: boolean;
   message: string;
 }
+
+// User Profile Types
+export interface PasswordChangeRequest {
+  currentPassword: string;
+  newPassword: string;
+  newPasswordConfirm: string;
+}
+
+export interface AccountDeleteRequest {
+  password: string;
+  reason?: string;
+}

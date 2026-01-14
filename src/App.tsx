@@ -17,6 +17,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import FavoriteAddPage from "./pages/FavoriteAddPage";
 import SelfDepositPage from "./pages/SelfDepositPage";
+import ProfilePage from "./pages/ProfilePage";
 
 // Layout
 import AppLayout from "./components/layout/AppLayout";
@@ -95,6 +96,7 @@ function App() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="favorites" element={<FavoritesPage />} />
           <Route path="favorites/add" element={<FavoriteAddPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
 
         {/* Fallback */}
