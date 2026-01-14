@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Box,
@@ -15,49 +15,51 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-} from '@mui/material';
-import { CheckCircle as CheckIcon } from '@mui/icons-material';
-import { qrService } from '../services/qr.service';
-import { formatCurrency } from '../utils/format';
-import { QrPayResponse } from '../types/api.types';
+} from "@mui/material";
+import { CheckCircle as CheckIcon } from "@mui/icons-material";
+import { qrService } from "../services/qr.service";
+import { formatCurrency } from "../utils/format";
+import { QrPayResponse } from "../types/api.types";
 
 const QrScanPage = () => {
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(1); // 1: 스캔 탭
   const [formData, setFormData] = useState({
-    qrCode: '',
-    password: '',
+    qrCode: "",
+    simplePassword: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [successDialog, setSuccessDialog] = useState(false);
-  const [paymentResult, setPaymentResult] = useState<QrPayResponse | null>(null);
+  const [paymentResult, setPaymentResult] = useState<QrPayResponse | null>(
+    null
+  );
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
     if (newValue === 0) {
-      navigate('/qr-generate');
+      navigate("/qr-generate");
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
-    
+
     // 간편 비밀번호는 숫자만, 최대 6자리
-    if (e.target.name === 'password') {
-      value = value.replace(/[^0-9]/g, '').slice(0, 6);
+    if (e.target.name === "simplePassword") {
+      value = value.replace(/[^0-9]/g, "").slice(0, 6);
     }
 
     setFormData({
       ...formData,
       [e.target.name]: value,
     });
-    setError('');
+    setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
@@ -65,7 +67,7 @@ const QrScanPage = () => {
       setPaymentResult(response);
       setSuccessDialog(true);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'QR 결제에 실패했습니다.');
+      setError(err.response?.data?.message || "QR 결제에 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -73,7 +75,7 @@ const QrScanPage = () => {
 
   const handleCloseSuccess = () => {
     setSuccessDialog(false);
-    navigate('/');
+    navigate("/");
   };
 
   return (
@@ -87,7 +89,7 @@ const QrScanPage = () => {
           value={tabValue}
           onChange={handleTabChange}
           variant="fullWidth"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          sx={{ borderBottom: 1, borderColor: "divider" }}
         >
           <Tab label="QR 생성" />
           <Tab label="QR 스캔" />
@@ -122,13 +124,13 @@ const QrScanPage = () => {
             <TextField
               fullWidth
               label="간편 비밀번호 (6자리)"
-              name="password"
-              type="password"
-              value={formData.password}
+              name="simplePassword"
+              type="simplePassword"
+              value={formData.simplePassword}
               onChange={handleChange}
               required
               margin="normal"
-              inputProps={{ maxLength: 6, inputMode: 'numeric' }}
+              inputProps={{ maxLength: 6, inputMode: "numeric" }}
             />
 
             <Alert severity="info" sx={{ mt: 2 }}>
@@ -143,12 +145,19 @@ const QrScanPage = () => {
               disabled={loading}
               sx={{ mt: 3 }}
             >
-              {loading ? '결제 중...' : '결제하기'}
+              {loading ? "결제 중..." : "결제하기"}
             </Button>
           </form>
 
-          <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
-            <Typography variant="caption" color="text.secondary" display="block" align="center">
+          <Box
+            sx={{ mt: 3, p: 2, bgcolor: "background.default", borderRadius: 2 }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              align="center"
+            >
               💡 실제 앱에서는 카메라를 통해 QR 코드를 스캔할 수 있습니다
             </Typography>
           </Box>
@@ -157,13 +166,13 @@ const QrScanPage = () => {
 
       {/* 결제 성공 다이얼로그 */}
       <Dialog open={successDialog} onClose={handleCloseSuccess}>
-        <DialogTitle sx={{ textAlign: 'center', pt: 4 }}>
-          <CheckIcon sx={{ fontSize: 60, color: 'success.main', mb: 1 }} />
+        <DialogTitle sx={{ textAlign: "center", pt: 4 }}>
+          <CheckIcon sx={{ fontSize: 60, color: "success.main", mb: 1 }} />
           <Typography variant="h5" fontWeight="bold">
             결제 완료
           </Typography>
         </DialogTitle>
-        <DialogContent sx={{ textAlign: 'center' }}>
+        <DialogContent sx={{ textAlign: "center" }}>
           {paymentResult && (
             <Box>
               <Typography variant="h4" fontWeight="bold" sx={{ my: 2 }}>
@@ -178,7 +187,7 @@ const QrScanPage = () => {
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
+        <DialogActions sx={{ justifyContent: "center", pb: 3 }}>
           <Button onClick={handleCloseSuccess} variant="contained" size="large">
             확인
           </Button>

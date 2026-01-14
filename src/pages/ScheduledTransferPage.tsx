@@ -26,7 +26,7 @@ const ScheduledTransferPage = () => {
   const [formData, setFormData] = useState({
     toAccountNumber: (location.state as any)?.toAccountNumber || "",
     amount: "",
-    password: "",
+    simplePassword: "",
     description: "",
     scheduledAt: "",
   });
@@ -90,7 +90,7 @@ const ScheduledTransferPage = () => {
     } else if (name === "amount") {
       const numericValue = value.replace(/[^0-9]/g, "");
       setFormData({ ...formData, [name]: numericValue });
-    } else if (name === "password") {
+    } else if (name === "simplePassword") {
       const numericValue = value.replace(/[^0-9]/g, "").slice(0, 6);
       setFormData({ ...formData, [name]: numericValue });
     } else {
@@ -118,7 +118,7 @@ const ScheduledTransferPage = () => {
       return;
     }
 
-    if (formData.password.length !== 6) {
+    if (formData.simplePassword.length !== 6) {
       setError("간편 비밀번호 6자리를 입력하세요.");
       return;
     }
@@ -141,7 +141,7 @@ const ScheduledTransferPage = () => {
       const requestData = {
         toAccountNumber: formatted,
         amount: parseInt(formData.amount),
-        password: formData.password,
+        simplePassword: formData.simplePassword,
         description: formData.description || "",
         scheduledAt: formData.scheduledAt, // datetime-local 값 그대로 전송
       };
@@ -161,7 +161,10 @@ const ScheduledTransferPage = () => {
 
   const handleCloseSuccess = () => {
     setSuccessDialog(false);
-    navigate("/scheduled-transfers");
+    navigate("/scheduled-transfers"); // 예약 목록으로 이동
+
+    // 대시보드로 이동하여 잔액 새로고침
+    // navigate('/', { state: { refresh: true } });
   };
 
   return (
@@ -240,9 +243,9 @@ const ScheduledTransferPage = () => {
             <TextField
               fullWidth
               label="간편 비밀번호 (6자리)"
-              name="password"
+              name="simplePassword"
               type="password"
-              value={formData.password}
+              value={formData.simplePassword}
               onChange={handleChange}
               required
               margin="normal"

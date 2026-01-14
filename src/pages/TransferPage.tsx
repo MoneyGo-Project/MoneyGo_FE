@@ -28,7 +28,7 @@ const TransferPage = () => {
   const [formData, setFormData] = useState({
     toAccountNumber: (location.state as any)?.toAccountNumber || "",
     amount: "",
-    password: "",
+    simplePassword: "",
     description: "",
   });
   const [accountOwner, setAccountOwner] = useState("");
@@ -88,7 +88,7 @@ const TransferPage = () => {
     }
 
     // 간편 비밀번호는 숫자만, 최대 6자리
-    if (e.target.name === "password") {
+    if (e.target.name === "simplePassword") {
       value = value.replace(/[^0-9]/g, "").slice(0, 6);
     }
 
@@ -126,7 +126,7 @@ const TransferPage = () => {
       const response = await transferService.transfer({
         toAccountNumber: formatted,
         amount: parseInt(formData.amount),
-        password: formData.password,
+        simplePassword: formData.simplePassword,
         description: formData.description || undefined,
       });
 
@@ -207,9 +207,9 @@ const TransferPage = () => {
             <TextField
               fullWidth
               label="간편 비밀번호 (6자리)"
-              name="password"
-              type="password"
-              value={formData.password}
+              name="simplePassword"
+              type="simplePassword"
+              value={formData.simplePassword}
               onChange={handleChange}
               required
               margin="normal"

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Container,
   Box,
@@ -15,7 +15,7 @@ import {
   ListItem,
   ListItemText,
   Chip,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Send as SendIcon,
   QrCode2 as QrCodeIcon,
@@ -23,27 +23,35 @@ import {
   Schedule as ScheduleIcon,
   Star as StarIcon,
   Lock as LockIcon,
-} from '@mui/icons-material';
-import { accountService } from '../services/account.service';
-import { transactionService } from '../services/transaction.service';
-import { simplePasswordService } from '../services/simplePassword.service';
-import { AccountResponse, TransactionResponse } from '../types/api.types';
-import { formatCurrency, formatAccountNumber, formatDateTime } from '../utils/format';
-import { authService } from '../services/auth.service';
+  AccountBalance as AccountBalanceIcon,
+} from "@mui/icons-material";
+import { accountService } from "../services/account.service";
+import { transactionService } from "../services/transaction.service";
+import { simplePasswordService } from "../services/simplePassword.service";
+import { AccountResponse, TransactionResponse } from "../types/api.types";
+import {
+  formatCurrency,
+  formatAccountNumber,
+  formatDateTime,
+} from "../utils/format";
+import { authService } from "../services/auth.service";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = authService.getCurrentUser();
   const [account, setAccount] = useState<AccountResponse | null>(null);
-  const [recentTransactions, setRecentTransactions] = useState<TransactionResponse[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<
+    TransactionResponse[]
+  >([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [hasSimplePassword, setHasSimplePassword] = useState(true);
 
   const fetchData = async () => {
     setLoading(true);
-    setError('');
-    
+    setError("");
+
     try {
       // 계좌 정보 조회
       const accountData = await accountService.getMyAccount();
@@ -60,7 +68,7 @@ const DashboardPage = () => {
       const simplePasswordStatus = await simplePasswordService.checkStatus();
       setHasSimplePassword(simplePasswordStatus.hasSimplePassword);
     } catch (err: any) {
-      setError('데이터를 불러오는데 실패했습니다.');
+      setError("데이터를 불러오는데 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -70,20 +78,42 @@ const DashboardPage = () => {
     fetchData();
   }, []);
 
-  const getTransactionColor = (transaction: TransactionResponse): 'success' | 'error' => {
+  // 페이지 다시 포커스될 때 새로고침 (예약 송금 후 돌아왔을 때)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log("대시보드 포커스, 잔액 새로고침");
+      fetchData();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, []);
+
+  const getTransactionColor = (
+    transaction: TransactionResponse
+  ): "success" | "error" => {
     // 내 계좌가 fromAccount인 경우 출금
-    return transaction.fromAccount === account?.accountNumber ? 'error' : 'success';
+    return transaction.fromAccount === account?.accountNumber
+      ? "error"
+      : "success";
   };
 
   const getTransactionAmount = (transaction: TransactionResponse): string => {
     const isOutgoing = transaction.fromAccount === account?.accountNumber;
-    const sign = isOutgoing ? '-' : '+';
+    const sign = isOutgoing ? "-" : "+";
     return `${sign}${formatCurrency(transaction.amount)}`;
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "80vh",
+        }}
+      >
         <CircularProgress />
       </Box>
     );
@@ -99,28 +129,43 @@ const DashboardPage = () => {
 
       {/* 간편 비밀번호 미등록 안내 */}
       {!hasSimplePassword && (
-        <Alert 
-          severity="warning" 
+        <Alert
+          severity="warning"
           sx={{ mb: 2 }}
           action={
-            <Button 
-              color="inherit" 
-              size="small" 
+            <Button
+              color="inherit"
+              size="small"
               startIcon={<LockIcon />}
-              onClick={() => navigate('/simple-password/register')}
+              onClick={() => navigate("/simple-password/register")}
             >
               등록
             </Button>
           }
         >
-          송금/QR결제 시 필요한 <strong>간편 비밀번호(6자리)</strong>를 등록하세요.
+          송금/QR결제 시 필요한 <strong>간편 비밀번호(6자리)</strong>를
+          등록하세요.
         </Alert>
       )}
 
       {/* 계좌 잔액 카드 */}
-      <Card elevation={2} sx={{ mb: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+      <Card
+        elevation={2}
+        sx={{
+          mb: 3,
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          color: "white",
+        }}
+      >
         <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "start",
+              mb: 2,
+            }}
+          >
             <Typography variant="body2" sx={{ opacity: 0.9 }}>
               내 계좌
             </Typography>
@@ -128,18 +173,18 @@ const DashboardPage = () => {
               size="small"
               startIcon={<RefreshIcon />}
               onClick={fetchData}
-              sx={{ color: 'white', minWidth: 'auto', p: 0.5 }}
+              sx={{ color: "white", minWidth: "auto", p: 0.5 }}
             >
               새로고침
             </Button>
           </Box>
-          
+
           <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
-            {account ? formatCurrency(account.balance) : '---'}
+            {account ? formatCurrency(account.balance) : "---"}
           </Typography>
-          
+
           <Typography variant="body2" sx={{ opacity: 0.9 }}>
-            {account ? formatAccountNumber(account.accountNumber) : '---'}
+            {account ? formatAccountNumber(account.accountNumber) : "---"}
           </Typography>
           <Typography variant="caption" sx={{ opacity: 0.8 }}>
             {user?.name}
@@ -154,8 +199,20 @@ const DashboardPage = () => {
             fullWidth
             variant="contained"
             size="large"
+            startIcon={<AccountBalanceIcon />}
+            onClick={() => navigate("/deposit")}
+            sx={{ py: 2 }}
+          >
+            입금하기
+          </Button>
+        </Grid>
+        <Grid item xs={6}>
+          <Button
+            fullWidth
+            variant="contained"
+            size="large"
             startIcon={<SendIcon />}
-            onClick={() => navigate('/transfer')}
+            onClick={() => navigate("/transfer")}
             sx={{ py: 2 }}
           >
             송금하기
@@ -167,7 +224,7 @@ const DashboardPage = () => {
             variant="outlined"
             size="large"
             startIcon={<QrCodeIcon />}
-            onClick={() => navigate('/qr-generate')}
+            onClick={() => navigate("/qr-generate")}
             sx={{ py: 2 }}
           >
             QR결제
@@ -179,7 +236,7 @@ const DashboardPage = () => {
             variant="outlined"
             size="large"
             startIcon={<ScheduleIcon />}
-            onClick={() => navigate('/scheduled-transfers')}
+            onClick={() => navigate("/scheduled-transfers")}
             sx={{ py: 2 }}
           >
             예약송금
@@ -191,7 +248,7 @@ const DashboardPage = () => {
             variant="outlined"
             size="large"
             startIcon={<StarIcon />}
-            onClick={() => navigate('/favorites')}
+            onClick={() => navigate("/favorites")}
             sx={{ py: 2 }}
           >
             즐겨찾기
@@ -202,17 +259,29 @@ const DashboardPage = () => {
       {/* 최근 거래 내역 */}
       <Card elevation={1}>
         <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
             <Typography variant="h6" fontWeight="bold">
               최근 거래
             </Typography>
-            <Button size="small" onClick={() => navigate('/transactions')}>
+            <Button size="small" onClick={() => navigate("/transactions")}>
               전체보기
             </Button>
           </Box>
 
           {recentTransactions.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 3 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              align="center"
+              sx={{ py: 3 }}
+            >
               거래 내역이 없습니다
             </Typography>
           ) : (
@@ -223,21 +292,38 @@ const DashboardPage = () => {
                   <ListItem sx={{ px: 0 }}>
                     <ListItemText
                       primary={
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
                           <Typography variant="body1" fontWeight="medium">
                             {transaction.counterpartyName}
                           </Typography>
                           <Typography
                             variant="body1"
                             fontWeight="bold"
-                            color={getTransactionColor(transaction) === 'success' ? 'success.main' : 'error.main'}
+                            color={
+                              getTransactionColor(transaction) === "success"
+                                ? "success.main"
+                                : "error.main"
+                            }
                           >
                             {getTransactionAmount(transaction)}
                           </Typography>
                         </Box>
                       }
                       secondary={
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mt: 0.5,
+                          }}
+                        >
                           <Typography variant="caption" color="text.secondary">
                             {transaction.description}
                           </Typography>

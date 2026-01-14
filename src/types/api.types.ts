@@ -56,7 +56,7 @@ export interface AccountOwnerResponse {
 export interface TransferRequest {
   toAccountNumber: string;
   amount: number;
-  password: string;
+  simplePassword: string;
   description?: string;
 }
 
@@ -70,6 +70,22 @@ export interface TransferResponse {
   status: string;
   createdAt: string;
   balanceAfter: number;
+}
+
+// Self Deposit Types
+export interface SelfDepositRequest {
+  amount: number;
+  simplePassword: string;
+  description?: string;
+}
+
+export interface SelfDepositResponse {
+  transactionId: number;
+  accountNumber: string;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  depositedAt: string;
 }
 
 // Transaction Types
@@ -111,7 +127,7 @@ export interface QrGenerateResponse {
 
 export interface QrPayRequest {
   qrCode: string;
-  password: string;
+  simplePassword: string;
 }
 
 export interface QrPayResponse {
@@ -144,7 +160,7 @@ export interface NotificationResponse {
 export interface ScheduledTransferRequest {
   toAccountNumber: string;
   amount: number;
-  password: string;
+  simplePassword: string;
   description?: string;
   scheduledAt: string; // ISO 8601 format
 }
