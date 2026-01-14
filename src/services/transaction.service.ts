@@ -34,4 +34,32 @@ export const transactionService = {
     );
     return response.data;
   },
+
+  // 거래 영수증 PDF 다운로드
+  downloadReceipt: async (transactionId: number): Promise<Blob> => {
+    const response = await api.get<Blob>(
+      `/transactions/${transactionId}/receipt`,
+      {
+        responseType: "blob",
+      }
+    );
+    return response.data as Blob;
+  },
+
+  // 거래 영수증 이메일 발송
+  sendReceiptEmail: async (
+    transactionId: number,
+    email: string
+  ): Promise<void> => {
+    await api.post(`/transactions/${transactionId}/receipt/email`, { email });
+  },
+
+  // 거래 내역서 PDF 다운로드
+  downloadStatement: async (year: number, month?: number): Promise<Blob> => {
+    const response = await api.get<Blob>("/transactions/statement", {
+      params: { year, month },
+      responseType: "blob",
+    });
+    return response.data as Blob;
+  },
 };

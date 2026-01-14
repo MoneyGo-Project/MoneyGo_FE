@@ -18,12 +18,23 @@ import {
   TextField,
   MenuItem,
   Collapse,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Menu,
+  ListItemIcon,
 } from "@mui/material";
 import {
   Refresh as RefreshIcon,
   FilterList as FilterIcon,
-  ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Receipt as ReceiptIcon,
+  Download as DownloadIcon,
+  Email as EmailIcon,
+  Description as DescriptionIcon,
+  MoreVert as MoreVertIcon,
 } from "@mui/icons-material";
 import { transactionService } from "../services/transaction.service";
 import { accountService } from "../services/account.service";
@@ -35,13 +46,28 @@ const TransactionsPage = () => {
   const [account, setAccount] = useState<AccountResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // 필터 상태
   const [filterOpen, setFilterOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<string>("all"); // all, today, week, month, custom
-  const [transactionType, setTransactionType] = useState<string>(""); // '', TRANSFER, DEPOSIT, QR_PAYMENT
+  const [dateRange, setDateRange] = useState<string>("all");
+  const [transactionType, setTransactionType] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+
+  // 영수증/내역서 다이얼로그
+  const [emailDialog, setEmailDialog] = useState(false);
+  const [statementDialog, setStatementDialog] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<number | null>(
+    null
+  );
+  const [emailAddress, setEmailAddress] = useState("");
+  const [statementYear, setStatementYear] = useState(new Date().getFullYear());
+  const [statementMonth, setStatementMonth] = useState<number | null>(
+    new Date().getMonth() + 1
+  );
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuTransaction, setMenuTransaction] = useState<number | null>(null);
 
   useEffect(() => {
     fetchAccount();
@@ -65,31 +91,19 @@ const TransactionsPage = () => {
     setError("");
 
     try {
-      let params: {
-        type?: string;
-        startDate?: string;
-        endDate?: string;
-        page: number;
-        size: number;
-      } = {
-        page: 0,
-        size: 50,
-      };
+      let params: any = { page: 0, size: 50 };
 
-      // 거래 유형 필터
-      if (transactionType) {
-        params.type = transactionType;
-      }
+      if (transactionType) params.type = transactionType;
 
-      // 날짜 범위 필터
       const today = new Date();
       let calculatedStartDate = "";
       let calculatedEndDate = "";
 
       switch (dateRange) {
         case "today":
-          calculatedStartDate = today.toISOString().split("T")[0];
-          calculatedEndDate = calculatedStartDate;
+          calculatedStartDate = calculatedEndDate = today
+            .toISOString()
+            .split("T")[0];
           break;
         case "week":
           const weekAgo = new Date(today);
@@ -106,9 +120,6 @@ const TransactionsPage = () => {
         case "custom":
           if (startDate) calculatedStartDate = startDate;
           if (endDate) calculatedEndDate = endDate;
-          break;
-        default:
-          // 'all' - 파라미터 없음
           break;
       }
 
@@ -131,6 +142,86 @@ const TransactionsPage = () => {
     if (value !== "custom") {
       setStartDate("");
       setEndDate("");
+    }
+  };
+
+  const handleMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    transactionId: number
+  ) => {
+    setAnchorEl(event.currentTarget);
+    setMenuTransaction(transactionId);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setMenuTransaction(null);
+  };
+
+  const handleDownloadReceipt = async (transactionId: number) => {
+    try {
+      const blob = await transactionService.downloadReceipt(transactionId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receipt_${transactionId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setSuccess("영수증이 다운로드되었습니다.");
+    } catch (err: any) {
+      setError("영수증 다운로드에 실패했습니다.");
+    }
+    handleMenuClose();
+  };
+
+  const handleOpenEmailDialog = (transactionId: number) => {
+    setSelectedTransaction(transactionId);
+    setEmailDialog(true);
+    handleMenuClose();
+  };
+
+  const handleSendEmail = async () => {
+    if (!selectedTransaction || !emailAddress) return;
+
+    try {
+      await transactionService.sendReceiptEmail(
+        selectedTransaction,
+        emailAddress
+      );
+      setSuccess("영수증이 이메일로 발송되었습니다.");
+      setEmailDialog(false);
+      setEmailAddress("");
+    } catch (err: any) {
+      setError("이메일 발송에 실패했습니다.");
+    }
+  };
+
+  const handleDownloadStatement = async () => {
+    try {
+      const blob = await transactionService.downloadStatement(
+        statementYear,
+        statementMonth || undefined
+      );
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const filename = statementMonth
+        ? `statement_${statementYear}_${String(statementMonth).padStart(
+            2,
+            "0"
+          )}.pdf`
+        : `statement_${statementYear}.pdf`;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setSuccess("거래 내역서가 다운로드되었습니다.");
+      setStatementDialog(false);
+    } catch (err: any) {
+      setError("거래 내역서 다운로드에 실패했습니다.");
     }
   };
 
@@ -199,6 +290,14 @@ const TransactionsPage = () => {
           <Button
             variant="outlined"
             size="small"
+            startIcon={<DescriptionIcon />}
+            onClick={() => setStatementDialog(true)}
+          >
+            내역서
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
             startIcon={filterOpen ? <ExpandLessIcon /> : <FilterIcon />}
             onClick={() => setFilterOpen(!filterOpen)}
           >
@@ -221,6 +320,11 @@ const TransactionsPage = () => {
         </Alert>
       )}
 
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>
+          {success}
+        </Alert>
+      )}
       {/* 필터 패널 */}
       <Collapse in={filterOpen}>
         <Card sx={{ mb: 2 }}>
@@ -303,7 +407,27 @@ const TransactionsPage = () => {
             {transactions.map((transaction, index) => (
               <Box key={transaction.transactionId}>
                 {index > 0 && <Divider />}
-                <ListItem>
+                <ListItem
+                  secondaryAction={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        color={getTransactionColor(transaction)}
+                      >
+                        {getTransactionAmount(transaction)}
+                      </Typography>
+                      <IconButton
+                        edge="end"
+                        onClick={(e) =>
+                          handleMenuOpen(e, transaction.transactionId)
+                        }
+                      >
+                        <MoreVertIcon />
+                      </IconButton>
+                    </Box>
+                  }
+                >
                   <ListItemText
                     primary={
                       <Box
@@ -335,19 +459,123 @@ const TransactionsPage = () => {
                       </Box>
                     }
                   />
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    color={getTransactionColor(transaction)}
-                  >
-                    {getTransactionAmount(transaction)}
-                  </Typography>
                 </ListItem>
               </Box>
             ))}
           </List>
         </Card>
       )}
+
+      {/* 거래 메뉴 */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem
+          onClick={() =>
+            menuTransaction && handleDownloadReceipt(menuTransaction)
+          }
+        >
+          <ListItemIcon>
+            <DownloadIcon fontSize="small" />
+          </ListItemIcon>
+          영수증 다운로드
+        </MenuItem>
+        <MenuItem
+          onClick={() =>
+            menuTransaction && handleOpenEmailDialog(menuTransaction)
+          }
+        >
+          <ListItemIcon>
+            <EmailIcon fontSize="small" />
+          </ListItemIcon>
+          이메일 발송
+        </MenuItem>
+      </Menu>
+
+      {/* 이메일 발송 다이얼로그 */}
+      <Dialog open={emailDialog} onClose={() => setEmailDialog(false)}>
+        <DialogTitle>영수증 이메일 발송</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="이메일 주소"
+            type="email"
+            fullWidth
+            value={emailAddress}
+            onChange={(e) => setEmailAddress(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEmailDialog(false)}>취소</Button>
+          <Button onClick={handleSendEmail} variant="contained">
+            발송
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 거래 내역서 다운로드 다이얼로그 */}
+      <Dialog open={statementDialog} onClose={() => setStatementDialog(false)}>
+        <DialogTitle>거래 내역서 다운로드</DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              pt: 2,
+              minWidth: 300,
+            }}
+          >
+            <TextField
+              select
+              label="연도"
+              value={statementYear}
+              onChange={(e) => setStatementYear(Number(e.target.value))}
+              fullWidth
+            >
+              {[...Array(5)].map((_, i) => {
+                const year = new Date().getFullYear() - i;
+                return (
+                  <MenuItem key={year} value={year}>
+                    {year}년
+                  </MenuItem>
+                );
+              })}
+            </TextField>
+            <TextField
+              select
+              label="월 (선택 안하면 연도별)"
+              value={statementMonth || ""}
+              onChange={(e) =>
+                setStatementMonth(
+                  e.target.value ? Number(e.target.value) : null
+                )
+              }
+              fullWidth
+            >
+              <MenuItem value="">연도별</MenuItem>
+              {[...Array(12)].map((_, i) => (
+                <MenuItem key={i + 1} value={i + 1}>
+                  {i + 1}월
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStatementDialog(false)}>취소</Button>
+          <Button
+            onClick={handleDownloadStatement}
+            variant="contained"
+            startIcon={<DownloadIcon />}
+          >
+            다운로드
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
