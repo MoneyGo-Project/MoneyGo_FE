@@ -231,3 +231,26 @@ export interface AccountDeleteRequest {
   password: string;
   reason?: string;
 }
+
+// Transaction Statistics Types
+export interface CategoryStatistics {
+  category: string;
+  amount: number;
+  count: number;
+  percentage: number;
+}
+
+export interface DailyTrend {
+  date: string;
+  deposit: number;
+  withdrawal: number;
+}
+
+export interface TransactionStatisticsResponse {
+  totalDeposit: number;
+  totalWithdrawal: number;
+  depositChangeRate: number;
+  withdrawalChangeRate: number;
+  categoryStatistics: CategoryStatistics[];
+  dailyTrends: DailyTrend[];
+}

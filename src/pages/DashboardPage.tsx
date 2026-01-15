@@ -15,6 +15,7 @@ import {
   ListItem,
   ListItemText,
   Chip,
+  IconButton,
 } from "@mui/material";
 import {
   Send as SendIcon,
@@ -24,26 +25,37 @@ import {
   Star as StarIcon,
   Lock as LockIcon,
   AccountBalance as AccountBalanceIcon,
+  Brightness4 as DarkModeTestIcon,
 } from "@mui/icons-material";
 import { accountService } from "../services/account.service";
 import { transactionService } from "../services/transaction.service";
 import { simplePasswordService } from "../services/simplePassword.service";
-import { AccountResponse, TransactionResponse } from "../types/api.types";
+import { statisticsService } from "../services/statistics.service";
+import {
+  AccountResponse,
+  TransactionResponse,
+  TransactionStatisticsResponse,
+} from "../types/api.types";
 import {
   formatCurrency,
   formatAccountNumber,
   formatDateTime,
 } from "../utils/format";
 import { authService } from "../services/auth.service";
+import { useTheme } from "../contexts/ThemeContext";
+import StatisticsSection from "../components/layout/StatisticsSection";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const user = authService.getCurrentUser();
+  const { isDarkMode, toggleTheme } = useTheme();
   const [account, setAccount] = useState<AccountResponse | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<
     TransactionResponse[]
   >([]);
+  const [statistics, setStatistics] =
+    useState<TransactionStatisticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [hasSimplePassword, setHasSimplePassword] = useState(true);
@@ -63,6 +75,10 @@ const DashboardPage = () => {
         size: 5,
       });
       setRecentTransactions(transactionsData.content);
+
+      // 거래 통계 조회
+      const statisticsData = await statisticsService.getStatistics();
+      setStatistics(statisticsData);
 
       // 간편 비밀번호 등록 여부 확인
       const simplePasswordStatus = await simplePasswordService.checkStatus();
@@ -121,6 +137,20 @@ const DashboardPage = () => {
 
   return (
     <Container maxWidth="md" sx={{ py: 3 }}>
+      {/* 임시 다크모드 테스트 버튼 */}
+      <Box sx={{ position: "fixed", top: 80, right: 20, zIndex: 1000 }}>
+        <IconButton
+          onClick={toggleTheme}
+          sx={{
+            bgcolor: "background.paper",
+            boxShadow: 2,
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <DarkModeTestIcon />
+        </IconButton>
+      </Box>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -255,6 +285,9 @@ const DashboardPage = () => {
           </Button>
         </Grid>
       </Grid>
+
+      {/* 거래 통계 */}
+      {statistics && <StatisticsSection statistics={statistics} />}
 
       {/* 최근 거래 내역 */}
       <Card elevation={1}>
