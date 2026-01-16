@@ -29,9 +29,11 @@ import {
   ArrowForward as ArrowForwardIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
+  LockOpen as LockOpenIcon,
 } from "@mui/icons-material";
 import { authService } from "../services/auth.service";
 import { simplePasswordService } from "../services/simplePassword.service";
+import { accountService } from "../services/account.service";
 import { useTheme } from "../contexts/ThemeContext";
 
 const ProfilePage = () => {
@@ -70,6 +72,79 @@ const ProfilePage = () => {
     message: "",
     severity: "success" as "success" | "error",
   });
+
+  // 계좌 잠금
+  const [isAccountLocked, setIsAccountLocked] = useState(false);
+  const [unlockDialog, setUnlockDialog] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState("");
+
+  // 계좌 잠금 상태 조회
+  useEffect(() => {
+    const fetchLockStatus = async () => {
+      try {
+        const status = await accountService.getLockStatus();
+        setIsAccountLocked(status.isLocked);
+      } catch (err) {
+        console.error("계좌 잠금 상태 조회 실패:", err);
+      }
+    };
+
+    fetchLockStatus();
+  }, []);
+
+  // 계좌 잠금 토글
+  const handleAccountLockToggle = async () => {
+    if (isAccountLocked) {
+      // 잠금 해제 - 비밀번호 입력 필요
+      setUnlockDialog(true);
+    } else {
+      // 잠금
+      setLoading(true);
+      try {
+        await accountService.lockAccount();
+        setIsAccountLocked(true);
+        setSnackbar({
+          open: true,
+          message: "🔒 계좌가 잠금되었습니다.",
+          severity: "success",
+        });
+      } catch (err: any) {
+        setSnackbar({
+          open: true,
+          message:
+            err.response?.data?.message || "❌ 계좌 잠금에 실패했습니다.",
+          severity: "error",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // 계좌 잠금 해제
+  const handleAccountUnlock = async () => {
+    setLoading(true);
+    try {
+      await accountService.unlockAccount({ password: unlockPassword });
+      setIsAccountLocked(false);
+      setUnlockDialog(false);
+      setUnlockPassword("");
+      setSnackbar({
+        open: true,
+        message: "🔓 계좌 잠금이 해제되었습니다.",
+        severity: "success",
+      });
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message:
+          err.response?.data?.message || "❌ 계좌 잠금 해제에 실패했습니다.",
+        severity: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 성공/에러 메시지 자동 닫힘
   useEffect(() => {
@@ -252,6 +327,30 @@ const ProfilePage = () => {
                 secondary="송금/결제 시 사용하는 6자리 비밀번호"
               />
               <ArrowForwardIcon color="action" />
+            </ListItem>
+            <Divider sx={{ my: 1 }} />
+            <ListItem sx={{ borderRadius: 1 }}>
+              <ListItemIcon>
+                {isAccountLocked ? (
+                  <LockIcon color="error" />
+                ) : (
+                  <LockOpenIcon color="action" />
+                )}
+              </ListItemIcon>
+              <ListItemText
+                primary="계좌 잠금"
+                secondary={
+                  isAccountLocked
+                    ? "계좌가 잠겨있습니다. 송금/출금이 차단됩니다."
+                    : "계좌를 잠가 송금/출금을 차단합니다"
+                }
+              />
+              <Switch
+                checked={isAccountLocked}
+                onChange={handleAccountLockToggle}
+                disabled={loading}
+                color={isAccountLocked ? "error" : "primary"}
+              />
             </ListItem>
           </List>
         </CardContent>
@@ -537,6 +636,48 @@ const ProfilePage = () => {
             disabled={loading || !deleteForm.password}
           >
             탈퇴하기
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 계좌 잠금 해제 다이얼로그 */}
+      <Dialog
+        open={unlockDialog}
+        onClose={() => setUnlockDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>계좌 잠금 해제</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            계좌 잠금을 해제하려면 비밀번호를 입력하세요.
+          </Alert>
+          <TextField
+            label="비밀번호"
+            type="password"
+            value={unlockPassword}
+            onChange={(e) => setUnlockPassword(e.target.value)}
+            fullWidth
+            required
+            autoFocus
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setUnlockDialog(false);
+              setUnlockPassword("");
+            }}
+          >
+            취소
+          </Button>
+          <Button
+            onClick={handleAccountUnlock}
+            variant="contained"
+            disabled={loading || !unlockPassword}
+          >
+            잠금 해제
           </Button>
         </DialogActions>
       </Dialog>

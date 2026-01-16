@@ -254,3 +254,12 @@ export interface TransactionStatisticsResponse {
   categoryStatistics: CategoryStatistics[];
   dailyTrends: DailyTrend[];
 }
+
+// Account Lock Types
+export interface AccountLockRequest {
+  password: string;
+}
+
+export interface AccountLockStatusResponse {
+  isLocked: boolean;
+}

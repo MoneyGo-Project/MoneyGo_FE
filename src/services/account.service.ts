@@ -4,6 +4,8 @@ import {
   AccountOwnerResponse,
   SelfDepositRequest,
   SelfDepositResponse,
+  AccountLockRequest,
+  AccountLockStatusResponse,
 } from "../types/api.types";
 
 export const accountService = {
@@ -30,6 +32,24 @@ export const accountService = {
     const response = await api.post<SelfDepositResponse>(
       "/accounts/deposit",
       data
+    );
+    return response.data;
+  },
+
+  // 계좌 잠금
+  lockAccount: async (): Promise<void> => {
+    await api.post("/accounts/lock");
+  },
+
+  // 계좌 잠금 해제
+  unlockAccount: async (data: AccountLockRequest): Promise<void> => {
+    await api.post("/accounts/unlock", data);
+  },
+
+  // 계좌 잠금 상태 조회
+  getLockStatus: async (): Promise<AccountLockStatusResponse> => {
+    const response = await api.get<AccountLockStatusResponse>(
+      "/accounts/lock-status"
     );
     return response.data;
   },
